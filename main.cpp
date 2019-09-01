@@ -1,71 +1,168 @@
-#include <iostream>
+/*******************************************************************************
+ * Copyright (c) 2015 Matthijs Kooijman
+ *
+ * Permission is hereby granted, free of charge, to anyone
+ * obtaining a copy of this document and accompanying files,
+ * to do whatever they want with them without any restriction,
+ * including, but not limited to, copying, modification and redistribution.
+ * NO WARRANTY OF ANY KIND IS PROVIDED.
+ *
+ * This example transmits data on hardcoded channel and receives data
+ * when not transmitting. Running this sketch on two nodes should allow
+ * them to communicate.
+ *******************************************************************************/
 
-#include <wiringPi.h>
-#include <stdio.h>
+#include <lmic.h>
+#include <hal/hal.h>
 
-#include "lor.c"
+#if !defined(DISABLE_INVERT_IQ_ON_RX)
+#error This example requires DISABLE_INVERT_IQ_ON_RX to be set. Update \
+       config.h in the lmic library to set it.
+#endif
 
-void tx_f(txData *tx){
-    LoRa_ctl *modem = (LoRa_ctl *)(tx->userPtr);
-    printf("tx done;\t");
-    printf("sent string: \"%s\"\n\n", tx->buf);//Data we've sent
+// How often to send a packet. Note that this sketch bypasses the normal
+// LMIC duty cycle limiting, so when you change anything in this sketch
+// (payload length, frequency, spreading factor), be sure to check if
+// this interval should not also be increased.
+// See this spreadsheet for an easy airtime and duty cycle calculator:
+// https://docs.google.com/spreadsheets/d/1voGAtQAjC1qBmaVuP1ApNKs1ekgUjavHuVQIXyYSvNc
+#define TX_INTERVAL 2000
 
-    LoRa_receive(modem);
+// Dragino Raspberry PI hat (no onboard led)
+// see https://github.com/dragino/Lora
+#define RF_CS_PIN  RPI_V2_GPIO_P1_22 // Slave Select on GPIO25 so P1 connector pin #22
+#define RF_IRQ_PIN RPI_V2_GPIO_P1_07 // IRQ on GPIO4 so P1 connector pin #7
+#define RF_RST_PIN RPI_V2_GPIO_P1_11 // Reset on GPIO17 so P1 connector pin #11
+
+// Pin mapping
+const lmic_pinmap lmic_pins = {
+    .nss  = RF_CS_PIN,
+    .rxtx = LMIC_UNUSED_PIN,
+    .rst  = RF_RST_PIN,
+    .dio  = {LMIC_UNUSED_PIN, LMIC_UNUSED_PIN, LMIC_UNUSED_PIN},
+};
+
+#ifndef RF_LED_PIN
+#define RF_LED_PIN NOT_A_PIN
+#endif
+
+
+// These callbacks are only used in over-the-air activation, so they are
+// left empty here (we cannot leave them out completely unless
+// DISABLE_JOIN is set in config.h, otherwise the linker will complain).
+void os_getArtEui (u1_t* buf) { }
+void os_getDevEui (u1_t* buf) { }
+void os_getDevKey (u1_t* buf) { }
+
+void onEvent (ev_t ev) {
 }
 
-void rx_f(rxData *rx){
-    LoRa_ctl *modem = (LoRa_ctl *)(rx->userPtr);
+osjob_t txjob;
+osjob_t timeoutjob;
+static void tx_func (osjob_t* job);
 
-    printf("CRC error: %d;\t", rx->CRC);
-    printf("Data size: %d;\t", rx->size);
-    printf("received string: \"%s\";\t", rx->buf);//Data we've received
-    printf("RSSI: %d;\t", rx->RSSI);
-    printf("SNR: %f\n", rx->SNR);
-
+// Transmit the given string and call the given function afterwards
+void tx(const char *str, osjobcb_t func) {
+  os_radio(RADIO_RST); // Stop RX first
+  delay(1); // Wait a bit, without this os_radio below asserts, apparently because the state hasn't changed yet
+  LMIC.dataLen = 0;
+  while (*str)
+    LMIC.frame[LMIC.dataLen++] = *str++;
+  LMIC.osjob.func = func;
+  os_radio(RADIO_TX);
+  Serial.println("TX");
 }
 
-int main(int argc, char **argv)
-{
-  char txbuf[255];
-  char rxbuf[255];
-  LoRa_ctl modem;
+// Enable rx mode and call func when a packet is received
+void rx(osjobcb_t func) {
+  LMIC.osjob.func = func;
+  LMIC.rxtime = os_getTime(); // RX _now_
+  // Enable "continuous" RX (e.g. without a timeout, still stops after
+  // receiving a packet)
+  os_radio(RADIO_RXON);
+  Serial.println("RX");
+}
 
-  //See for typedefs, enumerations and there values in LoRa.h header file
-  modem.spiCS = 0;//Raspberry SPI CE pin number
-  modem.tx.callback = tx_f;
-  modem.tx.data.buf = txbuf;
-  modem.rx.callback = rx_f;
-  modem.rx.data.buf = rxbuf;
-  modem.rx.data.userPtr = (void *)(&modem);//To handle with chip from rx callback
-  modem.tx.data.userPtr = (void *)(&modem);//To handle with chip from tx callback
-  memcpy(modem.tx.data.buf, "Rover alive - booted", 5);//copy data we'll sent to buffer
-  modem.tx.data.size = 5;//Payload len
-  modem.eth.preambleLen=6;
-  modem.eth.bw = BW62_5;//Bandwidth 62.5KHz
-  modem.eth.sf = SF12;//Spreading Factor 12
-  modem.eth.ecr = CR8;//Error coding rate CR4/8
-  modem.eth.CRC = 1;//Turn on CRC checking
-  modem.eth.freq = 868000000;// 434.8MHz
-  modem.eth.resetGpioN = 4;//GPIO4 on lora RESET pin
-  modem.eth.dio0GpioN = 17;//GPIO17 on lora DIO0 pin to control Rxdone and Txdone interrupts
-  modem.eth.outPower = OP20;//Output power
-  modem.eth.powerOutPin = PA_BOOST;//Power Amplifire pin
-  modem.eth.AGC = 1;//Auto Gain Control
-  modem.eth.OCP = 240;// 45 to 240 mA. 0 to turn off protection
-  modem.eth.implicitHeader = 0;//Explicit header mode
-  modem.eth.syncWord = 0x12;
-  //For detail information about SF, Error Coding Rate, Explicit header, Bandwidth, AGC, Over current protection and other features refer to sx127x datasheet https://www.semtech.com/uploads/documents/DS_SX1276-7-8-9_W_APP_V5.pdf
+static void rxtimeout_func(osjob_t *job) {
+  digitalWrite(LED_BUILTIN, LOW); // off
+}
 
-  LoRa_begin(&modem);
-  LoRa_send(&modem);
+static void rx_func (osjob_t* job) {
+  // Blink once to confirm reception and then keep the led on
+  digitalWrite(LED_BUILTIN, LOW); // off
+  delay(10);
+  digitalWrite(LED_BUILTIN, HIGH); // on
 
-  printf("Time on air data - Tsym: %f;\t", modem.tx.data.Tsym);
-  printf("Tpkt: %f;\t", modem.tx.data.Tpkt);
-  printf("payloadSymbNb: %u\n", modem.tx.data.payloadSymbNb);
+  // Timeout RX (i.e. update led status) after 3 periods without RX
+  os_setTimedCallback(&timeoutjob, os_getTime() + ms2osticks(3*TX_INTERVAL), rxtimeout_func);
 
-  while(1){
+  // Reschedule TX so that it should not collide with the other side's
+  // next TX
+  os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/2), tx_func);
 
+  Serial.print("Got ");
+  Serial.print(LMIC.dataLen);
+  Serial.println(" bytes");
+  Serial.write(LMIC.frame, LMIC.dataLen);
+  Serial.println();
+
+  // Restart RX
+  rx(rx_func);
+}
+
+static void txdone_func (osjob_t* job) {
+  rx(rx_func);
+}
+
+// log text to USART and toggle LED
+static void tx_func (osjob_t* job) {
+  // say hello
+  tx("Hello, world!", txdone_func);
+  // reschedule job every TX_INTERVAL (plus a bit of random to prevent
+  // systematic collisions), unless packets are received, then rx_func
+  // will reschedule at half this time.
+  os_setTimedCallback(job, os_getTime() + ms2osticks(TX_INTERVAL + random(500)), tx_func);
+}
+
+// application entry point
+void setup() {
+  printf("Starting\n");
+
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  // initialize runtime env
+  os_init();
+
+  // Set up these settings once, and use them for both TX and RX
+
+#if defined(CFG_eu868)
+  // Use a frequency in the g3 which allows 10% duty cycling.
+  LMIC.freq = 869525000;
+#elif defined(CFG_us915)
+  LMIC.freq = 902300000;
+#endif
+
+  // Maximum TX power
+  LMIC.txpow = 27;
+  // Use a medium spread factor. This can be increased up to SF12 for
+  // better range, but then the interval should be (significantly)
+  // lowered to comply with duty cycle limits as well.
+  LMIC.datarate = DR_SF9;
+  // This sets CR 4/5, BW125 (except for DR_SF7B, which uses BW250)
+  LMIC.rps = updr2rps(LMIC.datarate);
+
+  printf("Started\n");
+
+  // setup initial job
+  os_setCallback(&txjob, tx_func);
+}
+
+int main(void) {
+
+  setup();
+
+  while(1) {
+    // execute scheduled jobs and events
+    os_runloop_once();
   }
-
-  return 0;
 }
