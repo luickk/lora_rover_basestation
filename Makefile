@@ -1,7 +1,7 @@
 CC       = g++
 CFLAGS   = -std=c++11 -DRASPBERRY_PI -DBCM2835_NO_DELAY_COMPATIBILITY -D__BASEFILE__=\"$*\"
 LIBS     = -lbcm2835
-LMICBASE = libs/raspi-lmic/src
+LMICBASE = libs/lmic/src
 INCLUDE  = -I$(LMICBASE)
 BUILD_DIR  = build/
 
