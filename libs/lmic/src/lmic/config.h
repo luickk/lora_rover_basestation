@@ -63,7 +63,6 @@
 // hear gateways). This should probably only be used when debugging
 // and/or when talking to the radio directly (e.g. like in the "raw"
 // example).
-
 #define DISABLE_INVERT_IQ_ON_RX
 
 // This allows choosing between multiple included AES implementations.
@@ -82,11 +81,11 @@
 #define USE_IDEETRON_AES
 
 // Force Original AES on RPI
-#ifdef RASPBERRY_PI
+#ifdef RASPBERRY_PI 
 #ifdef USE_IDEETRON_AES
 #undef USE_IDEETRON_AES
 #define USE_ORIGINAL_AES
 #endif
-#endif
+#endif 
 
 #endif // _lmic_config_h_

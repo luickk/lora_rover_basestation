@@ -25,7 +25,7 @@
 // (payload length, frequency, spreading factor), be sure to check if
 // this interval should not also be increased.
 // See this spreadsheet for an easy airtime and duty cycle calculator:
-// https://docs.google.com/spreadsheets/d/1voGAtQAjC1qBmaVuP1ApNKs1ekgUjavHuVQIXyYSvNc 
+// https://docs.google.com/spreadsheets/d/1voGAtQAjC1qBmaVuP1ApNKs1ekgUjavHuVQIXyYSvNc
 #define TX_INTERVAL 2000
 
 // Dragino Raspberry PI hat (no onboard led)
@@ -35,7 +35,7 @@
 #define RF_RST_PIN RPI_V2_GPIO_P1_11 // Reset on GPIO17 so P1 connector pin #11
 
 // Pin mapping
-const lmic_pinmap lmic_pins = { 
+const lmic_pinmap lmic_pins = {
     .nss  = RF_CS_PIN,
     .rxtx = LMIC_UNUSED_PIN,
     .rst  = RF_RST_PIN,
@@ -43,7 +43,7 @@ const lmic_pinmap lmic_pins = {
 };
 
 #ifndef RF_LED_PIN
-#define RF_LED_PIN NOT_A_PIN  
+#define RF_LED_PIN NOT_A_PIN
 #endif
 
 
@@ -158,9 +158,13 @@ void setup() {
 }
 
 int main(void) {
-  
+  // initing bcm lib, otherwise it will result in a segmentation fault
+  if (!bcm2835_init())
+    return 1;
+
+
   setup();
-  
+
   while(1) {
     // execute scheduled jobs and events
     os_runloop_once();
