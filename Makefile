@@ -5,7 +5,7 @@ LMICBASE = libs/lmic/src
 INCLUDE  = -I$(LMICBASE)
 BUILD_DIR  = build/
 
-all: main
+all: main command_prompt
 
 $(BUILD_DIR)raspi.o: $(LMICBASE)/raspi/raspi.cpp
 				$(CC) -o $(BUILD_DIR)/raspi.o $(CFLAGS) -c $(LMICBASE)/raspi/raspi.cpp $(INCLUDE)
@@ -28,9 +28,15 @@ $(BUILD_DIR)aes.o: $(LMICBASE)/aes/lmic.c
 $(BUILD_DIR)main.o: main.cpp
 				$(CC) -o $(BUILD_DIR)/main.o $(CFLAGS) -c $(INCLUDE) $<
 
+$(BUILD_DIR)command_prompt.o: command_prompt.cpp
+				$(CC) -o $(BUILD_DIR)/command_prompt.o $(CFLAGS) -c $(INCLUDE) $<
+
 main: $(BUILD_DIR)main.o $(BUILD_DIR)raspi.o $(BUILD_DIR)radio.o $(BUILD_DIR)oslmic.o $(BUILD_DIR)lmic.o $(BUILD_DIR)hal.o $(BUILD_DIR)aes.o
 				$(CC) $^ $(LIBS) -o main
 
+command_prompt: $(BUILD_DIR)command_prompt.o $(BUILD_DIR)raspi.o $(BUILD_DIR)radio.o $(BUILD_DIR)oslmic.o $(BUILD_DIR)lmic.o $(BUILD_DIR)hal.o $(BUILD_DIR)aes.o
+				$(CC) $^ $(LIBS) -o command_prompt
+
 clean:
-				rm -rf build/*.o main
-				rm -rf *.o main
+				rm -rf build/*.o main command_prompt
+				rm -rf *.o main command_prompt

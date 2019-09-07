@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <lmic.h>
 #include <hal/hal.h>
 
@@ -84,7 +86,7 @@ static void rx_func (osjob_t* job) {
 
   // Reschedule TX so that it should not collide with the other side's
   // next TX
-  os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/2), tx_func);
+  //os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/2), tx_func);
 
   Serial.print("Got ");
   Serial.print(LMIC.dataLen);
@@ -107,7 +109,7 @@ static void tx_func (osjob_t* job) {
   // reschedule job every TX_INTERVAL (plus a bit of random to prevent
   // systematic collisions), unless packets are received, then rx_func
   // will reschedule at half this time.
-  os_setTimedCallback(job, os_getTime() + ms2osticks(TX_INTERVAL + random(500)), tx_func);
+  //os_setTimedCallback(job, os_getTime() + ms2osticks(TX_INTERVAL + random(500)), tx_func);
 }
 
 // application entry point
@@ -140,7 +142,7 @@ void setup() {
   printf("Started\n");
 
   // setup initial job
-  os_setCallback(&txjob, tx_func);
+  //os_setCallback(&txjob, tx_func);
 }
 
 int main(void) {
@@ -150,8 +152,16 @@ int main(void) {
 
   setup();
 
+  //tx("Hello, world!", txdone_func);
+
   while(1) {
     // execute scheduled jobs and events
     os_runloop_once();
+
+    std::string cmd;
+    std::cout << "Enter CMD: " << std::endl;
+
+    std::getline(std::cin, cmd);
+    tx(cmd.c_str(),txdone_func);
   }
 }
