@@ -1,6 +1,6 @@
-#include <iostream>
-
 #include <lmic.h>
+#include <iostream>
+#include <thread>
 #include <hal/hal.h>
 
 #if !defined(DISABLE_INVERT_IQ_ON_RX)
@@ -34,6 +34,7 @@ const lmic_pinmap lmic_pins = {
 #define RF_LED_PIN NOT_A_PIN
 #endif
 
+std::string tx_buffer = "basestation online";
 
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
@@ -58,7 +59,7 @@ void tx(const char *str, osjobcb_t func) {
     LMIC.frame[LMIC.dataLen++] = *str++;
   LMIC.osjob.func = func;
   os_radio(RADIO_TX);
-  Serial.println("TX");
+  //Serial.println("TX");
 }
 
 // Enable rx mode and call func when a packet is received
@@ -68,7 +69,7 @@ void rx(osjobcb_t func) {
   // Enable "continuous" RX (e.g. without a timeout, still stops after
   // receiving a packet)
   os_radio(RADIO_RXON);
-  Serial.println("RX");
+  //Serial.println("RX");
 }
 
 static void rxtimeout_func(osjob_t *job) {
@@ -86,7 +87,7 @@ static void rx_func (osjob_t* job) {
 
   // Reschedule TX so that it should not collide with the other side's
   // next TX
-  //os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/2), tx_func);
+  os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/2), tx_func);
 
   Serial.print("Got ");
   Serial.print(LMIC.dataLen);
@@ -105,11 +106,11 @@ static void txdone_func (osjob_t* job) {
 // log text to USART and toggle LED
 static void tx_func (osjob_t* job) {
   // say hello
-  tx("Hello, world!", txdone_func);
+  tx(tx_buffer.c_str(), txdone_func);
   // reschedule job every TX_INTERVAL (plus a bit of random to prevent
   // systematic collisions), unless packets are received, then rx_func
   // will reschedule at half this time.
-  //os_setTimedCallback(job, os_getTime() + ms2osticks(TX_INTERVAL + random(500)), tx_func);
+  os_setTimedCallback(job, os_getTime() + ms2osticks(TX_INTERVAL + random(500)), tx_func);
 }
 
 // application entry point
@@ -142,7 +143,15 @@ void setup() {
   printf("Started\n");
 
   // setup initial job
-  //os_setCallback(&txjob, tx_func);
+  os_setCallback(&txjob, tx_func);
+}
+
+void os_alive()
+{
+  while(1) {
+    // execute scheduled jobs and events
+    os_runloop_once();
+  }
 }
 
 int main(void) {
@@ -152,16 +161,16 @@ int main(void) {
 
   setup();
 
-  //tx("Hello, world!", txdone_func);
+  std::thread t1(os_alive);
 
-  while(1) {
-    // execute scheduled jobs and events
-    os_runloop_once();
+  while(1)
+  {
 
     std::string cmd;
     std::cout << "Enter CMD: " << std::endl;
 
     std::getline(std::cin, cmd);
-    tx(cmd.c_str(),txdone_func);
+    tx_buffer = cmd;
+
   }
 }
