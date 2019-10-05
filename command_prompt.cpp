@@ -89,9 +89,9 @@ static void rx_func (osjob_t* job) {
   // next TX
   os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/2), tx_func);
 
-  Serial.print("Got ");
-  Serial.print(LMIC.dataLen);
-  Serial.println(" bytes");
+  //Serial.print("Got ");
+  //Serial.print(LMIC.dataLen);
+  //Serial.println(" bytes");
   Serial.write(LMIC.frame, LMIC.dataLen);
   Serial.println();
 

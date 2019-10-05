@@ -1,5 +1,13 @@
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
+#include <iostream>
+#include <set>
 #include <lmic.h>
 #include <hal/hal.h>
+#include <boost/asio.hpp>
+
+std::string tx_io_buf = "";
+std::string rx_io_buf = "";
 
 #if !defined(DISABLE_INVERT_IQ_ON_RX)
 #error This example requires DISABLE_INVERT_IQ_ON_RX to be set. Update \
@@ -32,6 +40,40 @@ const lmic_pinmap lmic_pins = {
 #define RF_LED_PIN NOT_A_PIN
 #endif
 
+// Create a server endpoint
+
+typedef websocketpp::server<websocketpp::config::asio> server;
+
+server echo_server;
+
+using websocketpp::lib::placeholders::_1;
+using websocketpp::lib::placeholders::_2;
+using websocketpp::lib::bind;
+
+std::vector<websocketpp::connection_hdl> hdl_list;
+
+// pull out the type of messages sent by our config
+typedef server::message_ptr message_ptr;
+
+int con_count = 0;
+// Define a callback to handle incoming messages
+void on_message(server* s, websocketpp::connection_hdl hdl, message_ptr msg) {
+  con_count++;
+  hdl_list.push_back(hdl);
+  std::cout << " and message: " << msg->get_payload() << std::endl;
+
+  if (msg->get_payload() == "stop-listening") {
+      s->stop_listening();
+      return;
+  }
+}
+void on_open(websocketpp::connection_hdl hdl) {
+  std::cout << "con opened" << std::endl;
+}
+
+void on_close(websocketpp::connection_hdl hdl) {
+
+}
 
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
@@ -56,7 +98,7 @@ void tx(const char *str, osjobcb_t func) {
     LMIC.frame[LMIC.dataLen++] = *str++;
   LMIC.osjob.func = func;
   os_radio(RADIO_TX);
-  Serial.println("TX");
+  //Serial.println("TX");
 }
 
 // Enable rx mode and call func when a packet is received
@@ -66,13 +108,13 @@ void rx(osjobcb_t func) {
   // Enable "continuous" RX (e.g. without a timeout, still stops after
   // receiving a packet)
   os_radio(RADIO_RXON);
-  Serial.println("RX");
+  //Serial.println("RX");
 }
 
 static void rxtimeout_func(osjob_t *job) {
   digitalWrite(LED_BUILTIN, LOW); // off
 }
-
+int i = 0;
 static void rx_func (osjob_t* job) {
   // Blink once to confirm reception and then keep the led on
   digitalWrite(LED_BUILTIN, LOW); // off
@@ -92,6 +134,14 @@ static void rx_func (osjob_t* job) {
   Serial.write(LMIC.frame, LMIC.dataLen);
   Serial.println();
 
+  std::string buf(reinterpret_cast< char const* >(LMIC.frame));
+
+  if(con_count>0){
+    for(std::vector<int>::size_type i = 0; i != hdl_list.size(); i++) {
+      std::cout << "forwarding data" << std::endl;
+      echo_server.send(hdl_list[i], buf,  websocketpp::frame::opcode::text);
+    }
+  }
   // Restart RX
   rx(rx_func);
 }
@@ -103,7 +153,7 @@ static void txdone_func (osjob_t* job) {
 // log text to USART and toggle LED
 static void tx_func (osjob_t* job) {
   // say hello
-  tx("Hello, world!", txdone_func);
+  tx(tx_io_buf.c_str(), txdone_func);
   // reschedule job every TX_INTERVAL (plus a bit of random to prevent
   // systematic collisions), unless packets are received, then rx_func
   // will reschedule at half this time.
@@ -143,6 +193,14 @@ void setup() {
   os_setCallback(&txjob, tx_func);
 }
 
+void lora_keep_alive()
+{
+  while(1) {
+    // execute scheduled jobs and events
+    os_runloop_once();
+  }
+}
+
 int main(void) {
   // initing bcm lib, otherwise it will result in a segmentation fault
   if (!bcm2835_init())
@@ -150,8 +208,37 @@ int main(void) {
 
   setup();
 
-  while(1) {
-    // execute scheduled jobs and events
-    os_runloop_once();
+  std::thread os_(lora_keep_alive);
+
+  try {
+      boost::asio::ip::tcp::acceptor::reuse_address(true);
+
+      // Set logging settings
+      echo_server.set_access_channels(websocketpp::log::alevel::all);
+      echo_server.clear_access_channels(websocketpp::log::alevel::frame_payload);
+
+      // Initialize Asio
+      echo_server.init_asio();
+
+      // Register our message handler
+      echo_server.set_message_handler(bind(&on_message,&echo_server,::_1,::_2));
+
+      //echo_server.set_close_handler(bind(&on_close,&echo_server,::_1));
+
+
+      // Listen on port 9002
+      echo_server.listen(9002);
+
+      // Start the server accept loop
+      echo_server.start_accept();
+
+      // Start the ASIO io_service run loop
+      echo_server.run();
+
+  } catch (websocketpp::exception const & e) {
+      std::cout << e.what() << std::endl;
+  } catch (...) {
+      std::cout << "other exception" << std::endl;
   }
+
 }
