@@ -82,6 +82,13 @@ void os_getArtEui (u1_t* buf) { }
 void os_getDevEui (u1_t* buf) { }
 void os_getDevKey (u1_t* buf) { }
 
+bool isASCII (const std::string& s)
+{
+    return !std::any_of(s.begin(), s.end(), [](char c) {
+        return static_cast<unsigned char>(c) > 127;
+    });
+}
+
 void onEvent (ev_t ev) {
 }
 
@@ -135,28 +142,39 @@ static void rx_func (osjob_t* job) {
   Serial.println();
 
   std::string buf(reinterpret_cast< char const* >(LMIC.frame));
-
-  if(con_count>0){
-    for(std::vector<int>::size_type i = 0; i != hdl_list.size(); i++) {
-      std::cout << "forwarding data" << std::endl;
-      echo_server.send(hdl_list[i], buf,  websocketpp::frame::opcode::text);
+  if(isASCII(buf))
+  {
+    if(con_count>0)
+    {
+      for(std::vector<int>::size_type i = 0; i != hdl_list.size(); i++)
+      {
+        std::cout << "forwarding data" << std::endl;
+        echo_server.send(hdl_list[i], buf,  websocketpp::frame::opcode::text);
+      }
     }
-  }
+    }
   // Restart RX
   rx(rx_func);
 }
 
-static void txdone_func (osjob_t* job) {
+static void txdone_func (osjob_t* job)
+{
   rx(rx_func);
 }
 
 // log text to USART and toggle LED
 static void tx_func (osjob_t* job) {
   // say hello
-  tx(tx_io_buf.c_str(), txdone_func);
-  // reschedule job every TX_INTERVAL (plus a bit of random to prevent
-  // systematic collisions), unless packets are received, then rx_func
-  // will reschedule at half this time.
+  if(isASCII(tx_io_buf))
+  {
+    tx(tx_io_buf.c_str(), txdone_func);
+    // reschedule job every TX_INTERVAL (plus a bit of random to prevent
+    // systematic collisions), unless packets are received, then rx_func
+    // will reschedule at half this time.
+  } else
+  {
+    std::cout << "skipped forwarding because it contained non ascii characters" << std::endl;
+  }
   os_setTimedCallback(job, os_getTime() + ms2osticks(TX_INTERVAL + random(500)), tx_func);
 }
 
@@ -214,7 +232,7 @@ int main(void) {
       boost::asio::ip::tcp::acceptor::reuse_address(true);
 
       // Set logging settings
-      echo_server.set_access_channels(websocketpp::log::alevel::all);
+      // echo_server.set_access_channels(websocketpp::log::alevel::all);
       echo_server.clear_access_channels(websocketpp::log::alevel::frame_payload);
 
       // Initialize Asio
