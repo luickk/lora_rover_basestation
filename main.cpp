@@ -60,7 +60,8 @@ int con_count = 0;
 void on_message(server* s, websocketpp::connection_hdl hdl, message_ptr msg) {
   con_count++;
   hdl_list.push_back(hdl);
-  std::cout << " and message: " << msg->get_payload() << std::endl;
+  tx_io_buf = msg->get_payload();
+  std::cout << "wsock received: " << msg->get_payload() << std::endl;
 
   if (msg->get_payload() == "stop-listening") {
       s->stop_listening();
@@ -72,7 +73,6 @@ void on_open(websocketpp::connection_hdl hdl) {
 }
 
 void on_close(websocketpp::connection_hdl hdl) {
-
 }
 
 // These callbacks are only used in over-the-air activation, so they are
@@ -223,7 +223,7 @@ int main(void) {
       // Register our message handler
       echo_server.set_message_handler(bind(&on_message,&echo_server,::_1,::_2));
 
-      //echo_server.set_close_handler(bind(&on_close,&echo_server,::_1));
+      // echo_server.set_close_handler(bind(&on_close,&echo_server,::_1,));
 
 
       // Listen on port 9002
