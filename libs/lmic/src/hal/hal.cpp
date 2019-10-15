@@ -34,18 +34,18 @@ static void hal_io_init () {
     //ASSERT(lmic_pins.dio[0] != LMIC_UNUSED_PIN);
     //ASSERT(lmic_pins.dio[1] != LMIC_UNUSED_PIN || lmic_pins.dio[2] != LMIC_UNUSED_PIN);
 
-    pinMode(lmic_pins.nss, OUTPUT);
+    lora_pinMode(lmic_pins.nss, OUTPUT);
     if (lmic_pins.rxtx != LMIC_UNUSED_PIN)
-        pinMode(lmic_pins.rxtx, OUTPUT);
+        lora_pinMode(lmic_pins.rxtx, OUTPUT);
     if (lmic_pins.rst != LMIC_UNUSED_PIN)
-        pinMode(lmic_pins.rst, OUTPUT);
+        lora_pinMode(lmic_pins.rst, OUTPUT);
 
     // if using DIO lines, DIO0 is always required, DIO1 is required for LoRa, DIO2 for FSK
     for (uint8_t i = 0; i < NUM_DIO; ++i) {
         if (lmic_pins.dio[i] != LMIC_UNUSED_PIN) {
             check_dio = 1; // we need to use DIO line check
-            pinMode(lmic_pins.dio[i], INPUT);
-            
+            lora_pinMode(lmic_pins.dio[i], INPUT);
+
 #ifdef RASPBERRY_PI
             // Enable pull down an rising edge detection on this one
             bcm2835_gpio_set_pud(lmic_pins.dio[i], BCM2835_GPIO_PUD_DOWN);
@@ -59,7 +59,7 @@ static void hal_io_init () {
 // val == 1  => tx 1
 void hal_pin_rxtx (u1_t val) {
     if (lmic_pins.rxtx != LMIC_UNUSED_PIN)
-        digitalWrite(lmic_pins.rxtx, val);
+        lora_digitalWrite(lmic_pins.rxtx, val);
 }
 
 // set radio RST pin to given value (or keep floating!)
@@ -68,10 +68,10 @@ void hal_pin_rst (u1_t val) {
         return;
 
     if(val == 0 || val == 1) { // drive pin
-        pinMode(lmic_pins.rst, OUTPUT);
-        digitalWrite(lmic_pins.rst, val);
+        lora_pinMode(lmic_pins.rst, OUTPUT);
+        lora_digitalWrite(lmic_pins.rst, val);
     } else { // keep pin floating
-        pinMode(lmic_pins.rst, INPUT);
+        lora_pinMode(lmic_pins.rst, INPUT);
     }
 }
 
@@ -82,7 +82,7 @@ static void hal_io_check() {
     if (check_dio == 1) {
         uint8_t i;
         for (i = 0; i < NUM_DIO; ++i) {
-          
+
 #ifdef RASPBERRY_PI
             // Rising edge fired ?
             if (bcm2835_gpio_eds(lmic_pins.dio[i])) {
@@ -100,10 +100,10 @@ static void hal_io_check() {
             }
 #endif
         } // For
-        
+
     } else {
         // Check IRQ flags in radio module
-        if ( radio_has_irq() ) 
+        if ( radio_has_irq() )
             radio_irq_handler(0);
     }
 }
@@ -128,7 +128,7 @@ void hal_pin_nss (u1_t val) {
         SPI.endTransaction();
 
     //Serial.println(val?">>":"<<");
-    digitalWrite(lmic_pins.nss, val);
+    lora_digitalWrite(lmic_pins.nss, val);
 }
 
 
@@ -211,7 +211,7 @@ void hal_waitUntil (u4_t time) {
         delta -= (16000 / US_PER_OSTICK);
     }
     if (delta > 0)
-        delayMicroseconds(delta * US_PER_OSTICK);
+        bcm2835_delayMicroseconds(delta * US_PER_OSTICK);
 }
 
 // check and rewind for target time

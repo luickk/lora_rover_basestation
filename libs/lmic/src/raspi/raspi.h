@@ -19,7 +19,7 @@
 #include <netpacket/packet.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -43,7 +43,7 @@
 #endif
 
 #ifndef LED_BUILTIN
-  #define LED_BUILTIN NOT_A_PIN 
+  #define LED_BUILTIN NOT_A_PIN
 #endif
 
 // We don't have IRQ on Raspberry PI
@@ -52,11 +52,11 @@
 
 // Delay macros
 #define delay(x) bcm2835_delay(x)
-#define delayMicroseconds(m) bcm2835_delayMicroseconds(m)
+// #define delayMicroseconds(m) bcm2835_delayMicroseconds(m)
 
 // No memcpy_P/PROGMEM on Raspberry PI
 #ifndef memcpy_P
-#define memcpy_P memcpy 
+#define memcpy_P memcpy
 #endif
 
 #ifndef PROGMEM
@@ -64,13 +64,13 @@
 #endif
 
 // F() Macro
-#define F(s) 
+#define F(s)
 
 #define random(x) (rand() % x)
 
 typedef unsigned char byte;
 
-class SPISettings 
+class SPISettings
 {
   public:
     SPISettings(uint16_t divider, uint8_t bitOrder, uint8_t dataMode) {
@@ -81,7 +81,7 @@ class SPISettings
     }
   private:
     void init(uint16_t divider, uint8_t bitOrder, uint8_t dataMode) {
-      this->divider  = divider ; 
+      this->divider  = divider ;
       this->bitOrder = bitOrder;
       this->dataMode = dataMode;
     }
@@ -105,7 +105,7 @@ class SPIClass {
     static void setClockDivider(uint16_t);
 };
 
-extern SPIClass SPI; 
+extern SPIClass SPI;
 
 class SerialSimulator {
   public:
@@ -119,7 +119,7 @@ class SerialSimulator {
     static size_t println(void);
     static size_t println(const char* s);
     static size_t print(const char* s);
-    static size_t println(u2_t n); 
+    static size_t println(u2_t n);
     static size_t print(ostime_t n);
     static size_t print(unsigned int n, int base = DEC);
     static size_t print(char ch);
@@ -138,13 +138,13 @@ extern "C"{
 #endif
 
 void 		printConfig(const uint8_t led) ;
-void 		printKey(const char * name, const uint8_t * key, uint8_t len, bool lsb); 
+void 		printKey(const char * name, const uint8_t * key, uint8_t len, bool lsb);
 void 		printKeys() ;
 bool 		getDevEuiFromMac(uint8_t *);
 char * 	getSystemTime(char * time_buff, int len);
-void 		pinMode(unsigned char, unsigned char);
-void 		digitalWrite(unsigned char, unsigned char);
-unsigned char digitalRead(unsigned char) ;
+void 		lora_pinMode(unsigned char, unsigned char);
+void 		lora_digitalWrite(unsigned char, unsigned char);
+unsigned char lora_digitalRead(unsigned char) ;
 void          initialiseEpoch();
 unsigned int  millis();
 unsigned int  micros();
@@ -155,4 +155,3 @@ unsigned int  micros();
 
 #endif // RASPI_h
 #endif // RASPBERRY_PI
-

@@ -73,14 +73,14 @@ void rx(osjobcb_t func) {
 }
 
 static void rxtimeout_func(osjob_t *job) {
-  digitalWrite(LED_BUILTIN, LOW); // off
+  lora_digitalWrite(LED_BUILTIN, LOW); // off
 }
 
 static void rx_func (osjob_t* job) {
   // Blink once to confirm reception and then keep the led on
-  digitalWrite(LED_BUILTIN, LOW); // off
+  lora_digitalWrite(LED_BUILTIN, LOW); // off
   delay(10);
-  digitalWrite(LED_BUILTIN, HIGH); // on
+  lora_digitalWrite(LED_BUILTIN, HIGH); // on
 
   // Timeout RX (i.e. update led status) after 3 periods without RX
   os_setTimedCallback(&timeoutjob, os_getTime() + ms2osticks(3*TX_INTERVAL), rxtimeout_func);
@@ -117,7 +117,7 @@ static void tx_func (osjob_t* job) {
 void setup() {
   printf("Starting\n");
 
-  pinMode(LED_BUILTIN, OUTPUT);
+  lora_pinMode(LED_BUILTIN, OUTPUT);
 
   // initialize runtime env
   os_init();

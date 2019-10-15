@@ -16,12 +16,12 @@ static uint64_t epochMicro ;
 
 void SPIClass::begin() {
   initialiseEpoch();
-  
+
   if (!bcm2835_spi_begin()) {
     printf( "bcm2835_spi_begin() failed. Are you running as root??\n");
   } else {
 		// LMIC Library code control CS line
-		bcm2835_spi_chipSelect(BCM2835_SPI_CS_NONE);  
+		bcm2835_spi_chipSelect(BCM2835_SPI_CS_NONE);
 	}
 }
 
@@ -43,8 +43,8 @@ void SPIClass::beginTransaction(SPISettings settings) {
   // it. When SPI transaction is done bcm2835 can setup CE0/CE1
   // pins as ALT0 function which may cause chip unselected or
   // selected depending on chip. And if there are more than 1,
-  // then it can also interfere with other chip communication so 
-  // what we do here is to ensure ou CE0 and CE1 are output HIGH so 
+  // then it can also interfere with other chip communication so
+  // what we do here is to ensure ou CE0 and CE1 are output HIGH so
   // no other interference is happening if other chip are connected
   bcm2835_gpio_fsel ( 7, BCM2835_GPIO_FSEL_OUTP );
   bcm2835_gpio_fsel ( 8, BCM2835_GPIO_FSEL_OUTP );
@@ -60,14 +60,14 @@ void SPIClass::beginTransaction(SPISettings settings) {
 
 void SPIClass::endTransaction() {
 }
-  
+
 byte SPIClass::transfer(byte _data) {
   byte data;
   data= bcm2835_spi_transfer((uint8_t)_data);
   return data;
 }
- 
-void pinMode(unsigned char pin, unsigned char mode) {
+
+void lora_pinMode(unsigned char pin, unsigned char mode) {
   if (pin == LMIC_UNUSED_PIN) {
     return;
   }
@@ -78,14 +78,14 @@ void pinMode(unsigned char pin, unsigned char mode) {
   }
 }
 
-void digitalWrite(unsigned char pin, unsigned char value) {
+void lora_digitalWrite(unsigned char pin, unsigned char value) {
   if (pin == LMIC_UNUSED_PIN) {
     return;
   }
   bcm2835_gpio_write(pin, value);
 }
 
-unsigned char digitalRead(unsigned char pin) {
+unsigned char lora_digitalRead(unsigned char pin) {
   if (pin == LMIC_UNUSED_PIN) {
     return 0;
   }
@@ -99,8 +99,8 @@ void initialiseEpoch() {
   gettimeofday (&tv, NULL) ;
   epochMilli = (uint64_t)tv.tv_sec * (uint64_t)1000    + (uint64_t)(tv.tv_usec / 1000) ;
   epochMicro = (uint64_t)tv.tv_sec * (uint64_t)1000000 + (uint64_t)(tv.tv_usec) ;
-  pinMode(lmic_pins.nss, OUTPUT);
-  digitalWrite(lmic_pins.nss, HIGH);
+  lora_pinMode(lmic_pins.nss, OUTPUT);
+  lora_digitalWrite(lmic_pins.nss, HIGH);
 }
 
 unsigned int millis() {
@@ -122,8 +122,8 @@ unsigned int micros() {
 char * getSystemTime(char * time_buff, int len) {
 	time_t t;
 	struct tm* tm_info;
-	
-	t = time(NULL); 
+
+	t = time(NULL);
 	tm_info = localtime(&t);
 	if (tm_info) {
 		if (strftime(time_buff, len, "%H:%M:%S", tm_info)) {
@@ -143,7 +143,7 @@ void printConfig(const uint8_t led) {
 	} else {
 		printf( "CS=GPIO%d", lmic_pins.nss );
 	}
-	
+
 	printf( " RST=" );
 	if (lmic_pins.rst==LMIC_UNUSED_PIN ) {
 		printf( "Unused" );
@@ -157,8 +157,8 @@ void printConfig(const uint8_t led) {
 	} else {
 		printf( "GPIO%d", led );
 	}
-	
-	// DIO 
+
+	// DIO
 	for (uint8_t i=0; i<3 ; i++) {
 		printf( " DIO%d=", i );
 		if (lmic_pins.dio[i]==LMIC_UNUSED_PIN ) {
@@ -169,10 +169,10 @@ void printConfig(const uint8_t led) {
 	}
 	printf( "\n" );
 }
-		
+
 // Display a Key
 // =============
-void printKey(const char * name, const uint8_t * key, uint8_t len, bool lsb) 
+void printKey(const char * name, const uint8_t * key, uint8_t len, bool lsb)
 {
   uint8_t start=lsb?len:0;
   uint8_t end = lsb?0:len;
@@ -188,9 +188,9 @@ void printKey(const char * name, const uint8_t * key, uint8_t len, bool lsb)
 
 // Display OTAA Keys
 // =================
-void printKeys(void) 
+void printKeys(void)
 {
-	// LMIC may not have used callback to fill 
+	// LMIC may not have used callback to fill
 	// all EUI buffer so we do it to a temp
 	// buffer to be able to display them
 	uint8_t buf[32];
@@ -225,11 +225,11 @@ bool getDevEuiFromMac(uint8_t * pdeveui) {
           int fd;
           int up=0;
           struct sockaddr_ll *s = (struct sockaddr_ll*)ifa->ifa_addr;
-         
-          // Get interface status 
+
+          // Get interface status
           // Interface can be up with no cable connected and to be sure
           // It's up, active and connected we need to get operstate
-          // 
+          //
           // if up + cable    if up + NO cable    if down + cable
           // =============    ==========          ==================
           // carrier:1        carrier:0           carrier:Invalid
@@ -242,9 +242,9 @@ bool getDevEuiFromMac(uint8_t * pdeveui) {
               // only first active interface "up"
               if ( buf[0]=='u' && buf[1]=='p' ) {
                 uint8_t * p = pdeveui;
-                // deveui is LSB to we reverse it so TTN display 
+                // deveui is LSB to we reverse it so TTN display
                 // will remain the same as MAC address
-                // MAC is 6 bytes, devEUI 8, set first 2 ones 
+                // MAC is 6 bytes, devEUI 8, set first 2 ones
                 // with an arbitrary value
                 *p++ = 0x00;
                 *p++ = 0x04;
@@ -252,14 +252,14 @@ bool getDevEuiFromMac(uint8_t * pdeveui) {
                 for ( i=0; i<6 ; i++) {
                   *p++ = s->sll_addr[5-i];
                 }
-                
+
                 gotit = true;
                 close(fd);
                 break;
-              } 
+              }
             }
             close(fd);
-          } 
+          }
         }
       }
     }

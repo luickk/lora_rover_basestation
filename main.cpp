@@ -1,10 +1,17 @@
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 #include <iostream>
+#include <sstream>
+#include <limits>
 #include <set>
 #include <lmic.h>
 #include <hal/hal.h>
 #include <boost/asio.hpp>
+
+#include "libs/MicroNMEA/MicroNMEA.cpp"
+
+#include <wiringPi.h>
+#include <wiringSerial.h>
 
 std::string tx_io_buf = "";
 std::string rx_io_buf = "";
@@ -119,14 +126,15 @@ void rx(osjobcb_t func) {
 }
 
 static void rxtimeout_func(osjob_t *job) {
-  digitalWrite(LED_BUILTIN, LOW); // off
+  lora_digitalWrite(LED_BUILTIN, LOW); // off
 }
+
 int i = 0;
 static void rx_func (osjob_t* job) {
   // Blink once to confirm reception and then keep the led on
-  digitalWrite(LED_BUILTIN, LOW); // off
+  lora_digitalWrite(LED_BUILTIN, LOW); // off
   delay(10);
-  digitalWrite(LED_BUILTIN, HIGH); // on
+  lora_digitalWrite(LED_BUILTIN, HIGH); // on
 
   // Timeout RX (i.e. update led status) after 3 periods without RX
   os_setTimedCallback(&timeoutjob, os_getTime() + ms2osticks(3*TX_INTERVAL), rxtimeout_func);
@@ -182,7 +190,7 @@ static void tx_func (osjob_t* job) {
 void setup() {
   printf("Starting\n");
 
-  pinMode(LED_BUILTIN, OUTPUT);
+  lora_pinMode(LED_BUILTIN, OUTPUT);
 
   // initialize runtime env
   os_init();
@@ -219,12 +227,84 @@ void lora_keep_alive()
   }
 }
 
-int main(void) {
+void gps_serial_thread()
+{
+  std::cout << "gps thread started" << std::endl;
+
+  int fd = 0;
+  REINIT:if ((fd = serialOpen ("/dev/ttyS0", 9600)) < 0)
+  {
+   fprintf (stderr, "Unable to open serial device: %s\n", strerror (errno)) ;
+  }
+
+  //MicroNMEA library structures
+  char nmeaBuffer[200];
+  MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
+
+  std::string data;
+  std::string NavSystem;
+  int NumSatellites;
+  long lat;
+  long lon;
+
+  double latf;
+  double lonf;
+
+  int input = 0;
+
+  while (serialDataAvail (fd))
+  {
+    input = serialGetchar (fd);
+    try
+    {
+      nmea.process(input);
+
+      NumSatellites = nmea.getNumSatellites();
+
+      lat = nmea.getLatitude();
+      lon = nmea.getLongitude();
+
+      latf = (double) lat/1000000;
+      lonf = (double) lon/1000000;
+
+      float debug_lat = 49.466602;
+      float debug_lon = 10.967921;
+
+      std::cout << "Lat: " << latf << ", Lon: " << lonf << std::endl;
+
+
+    }
+    catch (const std::invalid_argument& ia) {
+        //std::cerr << "Invalid argument: " << ia.what() << std::endl;
+    }
+    catch (const std::out_of_range& oor) {
+        //std::cerr << "Out of Range error: " << oor.what() << std::endl;
+    }
+    catch (const std::exception& e)
+    {
+        //std::cerr << "Undefined error: " << e.what() << std::endl;
+    }
+
+    usleep(10000);
+
+    if(input==-1){
+      goto REINIT;
+    }
+  }
+}
+
+int main(void)
+{
   // initing bcm lib, otherwise it will result in a segmentation fault
   if (!bcm2835_init())
     return 1;
 
   setup();
+
+  /*
+  Todo start gps listening thread
+  */
+  std::thread gps_serial(gps_serial_thread);
 
   std::thread os_(lora_keep_alive);
 
