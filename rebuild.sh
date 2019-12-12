@@ -1,3 +1,3 @@
 make clean
 make
-./main
+./command_prompt

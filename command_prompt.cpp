@@ -36,6 +36,12 @@ const lmic_pinmap lmic_pins = {
 
 std::string tx_buffer = "basestation online";
 
+// telemetry = tele, image transmission = rx_img
+std::string rx_mode = "tele";
+
+// 5000 equals a grey scale 71*71 image
+char img_buffer[5000];
+
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
 // DISABLE_JOIN is set in config.h, otherwise the linker will complain).
@@ -92,8 +98,23 @@ static void rx_func (osjob_t* job) {
   //Serial.print("Got ");
   //Serial.print(LMIC.dataLen);
   //Serial.println(" bytes");
-  Serial.write(LMIC.frame, LMIC.dataLen);
-  Serial.println();
+
+  if(rx_mode=="tele")
+  {
+    std::cout << LMIC.frame << std::endl;
+  } else if(rx_mode=="rx_img")
+  {
+    std::string lmic_frame_str(reinterpret_cast<char*>(LMIC.frame), 4);
+    if(lmic_frame_str == "imgtxend")
+    {
+      rx_mode="tele";
+      std::cout << LMIC.frame << std::endl;
+    } else
+    {
+      std::cout << LMIC.frame << std::endl;
+      //std::strcat(img_buffer, LMIC.frame);
+    }
+  }
 
   // Restart RX
   rx(rx_func);
@@ -107,6 +128,13 @@ static void txdone_func (osjob_t* job) {
 static void tx_func (osjob_t* job) {
   // say hello
   tx(tx_buffer.c_str(), txdone_func);
+  if(tx_buffer=="rx_img")
+  {
+    rx_mode="rx_img";
+  } else if(tx_buffer=="tele")
+  {
+    rx_mode="tele";
+  }
   // reschedule job every TX_INTERVAL (plus a bit of random to prevent
   // systematic collisions), unless packets are received, then rx_func
   // will reschedule at half this time.

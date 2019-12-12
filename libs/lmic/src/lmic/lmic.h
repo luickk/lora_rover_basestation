@@ -31,7 +31,7 @@ extern "C"{
 #define LMIC_VERSION_MINOR 5
 #define LMIC_VERSION_BUILD 1431528305
 
-enum { MAX_FRAME_LEN      =  64 };   //!< Library cap on max frame length
+enum { MAX_FRAME_LEN      =  128 };   //!< Library cap on max frame length
 enum { TXCONF_ATTEMPTS    =   8 };   //!< Transmit attempts for confirmed frames
 enum { MAX_MISSED_BCNS    =  20 };   // threshold for triggering rejoin requests
 enum { MAX_RXSYMS         = 100 };   // stop tracking beacon beyond this
@@ -215,7 +215,7 @@ struct lmic_t {
     u1_t        adrChanged;
 
     u1_t        rxDelay;      // Rx delay after TX
-    
+
     u1_t        margin;
     bit_t       ladrAns;      // link adr adapt answer pending
     bit_t       devsAns;      // device status answer pending
