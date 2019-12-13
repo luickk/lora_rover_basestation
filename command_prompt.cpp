@@ -1,6 +1,7 @@
 #include <lmic.h>
 #include <iostream>
 #include <thread>
+#include <cstring>
 #include <hal/hal.h>
 
 #if !defined(DISABLE_INVERT_IQ_ON_RX)
@@ -40,7 +41,7 @@ std::string tx_buffer = "basestation online";
 std::string rx_mode = "tele";
 
 // 5000 equals a grey scale 71*71 image
-char img_buffer[5000];
+char img_buffer[6000];
 
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
@@ -105,10 +106,13 @@ static void rx_func (osjob_t* job) {
   } else if(rx_mode=="rx_img")
   {
     std::string lmic_frame_str(reinterpret_cast<char*>(LMIC.frame), 4);
+    std::strcat(img_buffer, reinterpret_cast<char*>(LMIC.frame));
+    
     if(lmic_frame_str == "imgtxend")
     {
       rx_mode="tele";
-      std::cout << LMIC.frame << std::endl;
+      std::cout << "-------- end of img tx --------" << std::endl;
+      std::cout << "-------- total received array size: " << sizeof(img_buffer)/sizeof(img_buffer[0]) << " --------" << std::endl;
     } else
     {
       std::cout << LMIC.frame << std::endl;
@@ -128,7 +132,7 @@ static void txdone_func (osjob_t* job) {
 static void tx_func (osjob_t* job) {
   // say hello
   tx(tx_buffer.c_str(), txdone_func);
-  if(tx_buffer=="rx_img")
+  if(tx_buffer=="tx_img")
   {
     rx_mode="rx_img";
   } else if(tx_buffer=="tele")
