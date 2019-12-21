@@ -3,6 +3,7 @@
 #include <thread>
 #include <cstring>
 #include <hal/hal.h>
+#include <opencv2/opencv.hpp>
 
 #if !defined(DISABLE_INVERT_IQ_ON_RX)
 #error This example requires DISABLE_INVERT_IQ_ON_RX to be set. Update \
@@ -100,26 +101,27 @@ static void rx_func (osjob_t* job) {
   //Serial.print(LMIC.dataLen);
   //Serial.println(" bytes");
 
+  // std::cout << rx_mode << std::endl;
   if(rx_mode=="tele")
   {
     std::cout << LMIC.frame << std::endl;
   } else if(rx_mode=="rx_img")
   {
-    std::string lmic_frame_str(reinterpret_cast<char*>(LMIC.frame), 4);
+    std::string lmic_frame_str(reinterpret_cast<char*>(LMIC.frame), 8);
     std::strcat(img_buffer, reinterpret_cast<char*>(LMIC.frame));
-    
+    std::cout << "lmic data: " << lmic_frame_str << std::endl;
     if(lmic_frame_str == "imgtxend")
     {
       rx_mode="tele";
       std::cout << "-------- end of img tx --------" << std::endl;
       std::cout << "-------- total received array size: " << sizeof(img_buffer)/sizeof(img_buffer[0]) << " --------" << std::endl;
+      cv::imwrite("r.png", cv::Mat(70,70,CV_8UC3,img_buffer));
     } else
     {
       std::cout << LMIC.frame << std::endl;
       //std::strcat(img_buffer, LMIC.frame);
     }
   }
-
   // Restart RX
   rx(rx_func);
 }
