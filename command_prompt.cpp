@@ -42,7 +42,7 @@ std::string tx_buffer = "basestation online";
 std::string rx_mode = "tele";
 
 // 5000 equals a grey scale 71*71 image
-char img_buffer[6000];
+unsigned char img_buffer[6500];
 
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
@@ -101,24 +101,24 @@ static void rx_func (osjob_t* job) {
   //Serial.print(LMIC.dataLen);
   //Serial.println(" bytes");
 
-  // std::cout << rx_mode << std::endl;
+  std::cout << rx_mode << std::endl;
   if(rx_mode=="tele")
   {
     std::cout << LMIC.frame << std::endl;
   } else if(rx_mode=="rx_img")
   {
     std::string lmic_frame_str(reinterpret_cast<char*>(LMIC.frame), 8);
-    std::strcat(img_buffer, reinterpret_cast<char*>(LMIC.frame));
-    std::cout << "lmic data: " << lmic_frame_str << std::endl;
+    //std::cout << "lmic data: " << lmic_frame_str << std::endl;
     if(lmic_frame_str == "imgtxend")
     {
       rx_mode="tele";
       std::cout << "-------- end of img tx --------" << std::endl;
       std::cout << "-------- total received array size: " << sizeof(img_buffer)/sizeof(img_buffer[0]) << " --------" << std::endl;
-      cv::imwrite("r.png", cv::Mat(70,70,CV_8UC3,img_buffer));
+      cv::imwrite("r.png", cv::Mat(70,70,CV_8UC1, img_buffer));
     } else
     {
-      std::cout << LMIC.frame << std::endl;
+      std::strcat((char*)img_buffer, (char*)LMIC.frame);
+      //std::cout << LMIC.frame << std::endl;
       //std::strcat(img_buffer, LMIC.frame);
     }
   }
@@ -141,6 +141,7 @@ static void tx_func (osjob_t* job) {
   {
     rx_mode="tele";
   }
+  tx_buffer="";
   // reschedule job every TX_INTERVAL (plus a bit of random to prevent
   // systematic collisions), unless packets are received, then rx_func
   // will reschedule at half this time.

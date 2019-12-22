@@ -1,6 +1,6 @@
 CC       = g++
 CFLAGS   = -std=c++11 -DRASPBERRY_PI -DBCM2835_NO_DELAY_COMPATIBILITY -D__BASEFILE__=\"$*\"
-LIBS     = -lwiringPi -lbcm2835 -pthread -lboost_system -lopencv_core -lopencv_photo
+LIBS     = -lwiringPi -lbcm2835 -pthread -lboost_system -lopencv_core -lopencv_imgcodecs -lopencv_highgui
 LMICBASE = libs/lmic/src
 INCLUDE  = -I$(LMICBASE) -Ilibs/
 BUILD_DIR  = build/
