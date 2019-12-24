@@ -84,6 +84,8 @@ static void rxtimeout_func(osjob_t *job) {
   lora_digitalWrite(LED_BUILTIN, LOW); // off
 }
 
+int buffer_size_size=0;
+
 static void rx_func (osjob_t* job) {
   // Blink once to confirm reception and then keep the led on
   lora_digitalWrite(LED_BUILTIN, LOW); // off
@@ -97,11 +99,7 @@ static void rx_func (osjob_t* job) {
   // next TX
   os_setTimedCallback(&txjob, os_getTime() + ms2osticks(TX_INTERVAL/2), tx_func);
 
-  //Serial.print("Got ");
-  //Serial.print(LMIC.dataLen);
-  //Serial.println(" bytes");
-
-  std::cout << rx_mode << std::endl;
+  // std::cout << rx_mode << std::endl;
   if(rx_mode=="tele")
   {
     std::cout << LMIC.frame << std::endl;
@@ -113,11 +111,14 @@ static void rx_func (osjob_t* job) {
     {
       rx_mode="tele";
       std::cout << "-------- end of img tx --------" << std::endl;
-      std::cout << "-------- total received array size: " << sizeof(img_buffer)/sizeof(img_buffer[0]) << " --------" << std::endl;
+      std::cout << "-------- total received array size: " << buffer_size_size << " --------" << std::endl;
       cv::imwrite("r.png", cv::Mat(70,70,CV_8UC1, img_buffer));
+      buffer_size_size=0;
     } else
     {
-      std::strcat((char*)img_buffer, (char*)LMIC.frame);
+      // std::strcat((char*)img_buffer, (char*)LMIC.frame);
+      memcpy(img_buffer+buffer_size_size, LMIC.frame, LMIC.dataLen);
+      buffer_size_size += LMIC.dataLen;
       //std::cout << LMIC.frame << std::endl;
       //std::strcat(img_buffer, LMIC.frame);
     }
